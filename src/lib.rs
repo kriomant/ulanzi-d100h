@@ -5,9 +5,7 @@
 #![forbid(unsafe_code)]
 
 pub mod protocol;
-pub mod state;
 #[cfg(feature = "ble")]
 pub mod ble;
 
 pub use protocol::{Button, Command, Direction, Event, Message, Packet, ProtocolError, Reply};
-pub use state::{Action, ButtonState};

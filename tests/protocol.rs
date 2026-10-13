@@ -1,5 +1,5 @@
 use std::time::Duration;
-use ulanzi_d100h::{Action, Button, ButtonState, Command, Direction, Event, Message, Packet};
+use ulanzi_d100h::{Command, Event, Message, Packet};
 
 #[test]
 fn malformed_packets_and_unknown_events_are_preserved() {
@@ -25,23 +25,6 @@ fn builds_ui_verified_settings() {
     }
     assert!(Command::sleep_timer(Duration::from_millis(1500)).is_err());
     assert!(Command::sleep_timer(Duration::from_secs(65536)).is_err());
-}
-
-#[test]
-fn overlapping_buttons_and_knob_modifiers() {
-    let mut state = ButtonState::default();
-    for button in [Button::TopLeft, Button::TopMiddle, Button::TopRight] {
-        state.apply(Event::Button { button, pressed: true });
-    }
-    assert_eq!(state.held().len(), 3);
-    state.apply(Event::Button { button: Button::TopMiddle, pressed: false });
-    let action = state.apply(Event::Rotation { direction: Direction::Clockwise, knob_pressed: true }).unwrap();
-    assert!(matches!(action, Action::Rotation { knob_pressed: true, ref held, .. } if held.len() == 2));
-    assert!(matches!(state.apply(Event::KnobClick { pressed: true }), Some(Action::KnobClick { .. })));
-    assert_eq!(state.apply(Event::KnobClick { pressed: false }), None);
-    assert_eq!(state.held().len(), 2);
-    state.clear();
-    assert!(state.held().is_empty());
 }
 
 #[test]

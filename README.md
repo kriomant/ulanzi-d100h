@@ -5,7 +5,6 @@ verified against captures from firmware **1.3.8.1**.
 
 - Dependency-free 20-byte packet codec with TEA encryption/decryption.
 - Typed button, knob click, rotation, and held-knob rotation events.
-- Overlapping button tracking and contextual rotation actions.
 - Haptics, sleep timer, serial query, and observed heartbeat commands.
 - Optional asynchronous BLE client using btleplug.
 
@@ -14,14 +13,12 @@ See [PROTOCOL.md](PROTOCOL.md) for the complete evidence and limitations.
 ## Decode notifications
 
 ```rust
-use ulanzi_d100h::{ButtonState, Message, Packet};
+use ulanzi_d100h::{Message, Packet};
 
-fn receive(value: &[u8], state: &mut ButtonState) {
+fn receive(value: &[u8]) {
     match Packet::from_wire(value).map(Packet::message) {
         Ok(Message::Event(event)) => {
-            if let Some(action) = state.apply(event) {
-                println!("{action:?}");
-            }
+            println!("{event:?}");
         }
         other => println!("{other:?}"),
     }
@@ -54,8 +51,8 @@ requires confirmation. A successful BLE write does not imply acknowledgment.
 `Client` itself does not schedule heartbeats; the `events` example does. The
 heartbeat expiry time and behavior after stopping it remain unmeasured. There is
 no automatic timeout, reconnect, or response correlation. Monitor btleplug
-central disconnect events as appropriate for the platform and clear ButtonState
-on disconnect. Call Client::disconnect for explicit cleanup.
+central disconnect events as appropriate for the platform. Call Client::disconnect
+for explicit cleanup.
 
 List discovered UUIDs without sending vendor writes:
 
@@ -117,8 +114,8 @@ Serial replies expose raw fragments; automatic serial assembly is intentionally
 left to callers because general fragmentation completion rules are unverified.
 
 The knob click arrives as a synthetic down/up pair **on physical release**.
-ButtonState emits one click for its down and ignores the synthetic up. Knob hold
-state cannot be inferred from that pair; held rotation has its own event IDs.
+Knob hold state cannot be inferred from that pair; held rotation has its own
+event IDs.
 
 ## Validation
 
