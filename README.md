@@ -45,15 +45,15 @@ while let Some(message) = client.next_message().await {
 }
 ```
 
-The code above assumes the device session has been initialized. **The minimum
-startup/authentication sequence and characteristic UUID mapping are not verified.**
-Consequently, attach subscribes but does not send a guessed handshake. The raw
-command API supports experiments based on the observed sequence in PROTOCOL.md.
-A successful BLE write does not imply application-level acknowledgment.
+After subscribing, send `Command::Heartbeat` immediately and once per second.
+This was confirmed with Studio fully quit: vendor control events became available
+and the factory keyboard/media actions stopped. No other startup commands were
+needed in this experiment on firmware 1.3.8.1. Characteristic UUID mapping still
+requires confirmation. A successful BLE write does not imply acknowledgment.
 
-Studio sent `Command::Heartbeat` approximately once per second. Its necessity is
-unverified; callers can schedule it explicitly and consume replies. There is no
-automatic heartbeat, timeout, reconnect, or response correlation. Monitor btleplug
+`Client` itself does not schedule heartbeats; the `events` example does. The
+heartbeat expiry time and behavior after stopping it remain unmeasured. There is
+no automatic timeout, reconnect, or response correlation. Monitor btleplug
 central disconnect events as appropriate for the platform and clear ButtonState
 on disconnect. Call Client::disconnect for explicit cleanup.
 
@@ -79,6 +79,27 @@ permission for the terminal or application running the example. Platform Bluetoo
 requirements are inherited from btleplug (Linux additionally needs D-Bus development
 libraries). Discovery output still requires identification of the correct vendor
 characteristics; the example does not guess.
+
+## Print live events
+
+Automatically select the write/notify channels:
+
+```sh
+cargo run --features ble --example events
+```
+
+The example looks for a unique pair of distinct write-without-response and notify
+characteristics in the same Ulanzi Studio service (`1971` or `2013`) and prints the
+selected UUIDs. This is a property-based heuristic; the vendor UUID mapping remains
+unverified. If no pair or multiple pairs match, it reports an error. You can override
+selection with `-- <write-uuid> <notify-uuid> [device-id]`.
+
+The example connects to a Dial already connected in Bluetooth settings and prints
+decoded events, replies, and unknown messages until disconnected or stopped with
+Ctrl-C. If multiple devices are available, append `-- <device-id>` using the ID
+printed by `discover`.
+Close Studio first. The example sends the heartbeat immediately and every second
+to enable online control events and suppress factory HID actions.
 
 ## Commands
 
@@ -111,3 +132,21 @@ Regression fixtures contain captured ciphertext/plaintext pairs, including devic
 identity data. Codec round trips are checked against those captured values rather
 than only internally generated packets. No live-device behavior is claimed by these
 tests. No firmware upgrade or USB transport is implemented.
+
+## Standalone HID behavior and online mode
+
+The `events` example now sends the captured Studio heartbeat immediately and
+once per second. Run with `--passive` to retain notification-only behavior:
+
+```sh
+cargo run --features ble --example events
+cargo run --features ble --example events -- --passive
+```
+
+Confirmed by the user on firmware 1.3.8.1 with Studio fully quit: sending the
+heartbeat alone enables vendor control events and suppresses factory HID actions.
+The example performs no other startup exchanges. This confirms sufficiency for
+this device/session; the timeout after stopping heartbeats is not yet measured.
+
+The Homebrew project's observation that custom profiles do not persist on the
+device does not establish that vendor commands cannot switch its input mode.

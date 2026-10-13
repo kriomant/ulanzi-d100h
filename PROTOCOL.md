@@ -248,7 +248,7 @@ The serial query `01 01 0b 01` produced:
 
 The data supports this interpretation: byte 4 is fragment text length (`0a` = 10; `07` = 7), byte 5 is fragment index (`00`, `01`), and text starts at byte 6. Concatenation yields `A0D26I003U3711117`. This is established for this two-fragment response; broader fragmentation rules are not tested.
 
-### Periodic exchange
+### Online mode and periodic exchange
 
 After initialization, approximately once per second:
 
@@ -257,7 +257,16 @@ Host:       06 01 23 00 01 00 ...
 Controller: 06 01 23 10 01 00 ...
 ```
 
-This is likely a heartbeat/keepalive. Its exact purpose and whether it is mandatory are untested. The initial capture shows it both before and after reconnection.
+**Hardware-confirmed:** with Studio fully quit, the independent Rust example
+subscribed to the vendor notify characteristic and sent this heartbeat immediately
+and once per second. Vendor control events became available and factory HID
+keyboard/media actions stopped. No other startup commands were sent. Thus the
+heartbeat is sufficient to enable online operation on the tested firmware 1.3.8.1.
+
+Subscription alone had left factory HID actions active and some controls absent
+from the vendor event stream. The timeout and fallback behavior after heartbeats
+stop remain unmeasured. The initial Studio capture shows heartbeat traffic both
+before and after reconnection.
 
 ### Additional unsolicited message
 
@@ -270,9 +279,9 @@ A practical receiver can decrypt the vendor notifications, parse control events,
 Remaining work:
 
 - Confirm GATT service/characteristic UUIDs and a discovery procedure.
-- Establish the minimum successful startup/authentication sequence independently of Studio.
+- Check whether heartbeat-only initialization also works after a power cycle; characterize any authentication requirements across other devices/firmware.
 - Identify firmware/version and unresolved startup/status fields.
-- Verify heartbeat necessity, disconnect handling, and any transaction identifiers.
+- Measure heartbeat expiry/fallback behavior, disconnect handling, and any transaction identifiers.
 - Test maximum simultaneous presses, additional pairs, fast rotation, and knob edge cases.
 - Test settings persistence and arbitrary sleep values, if desired.
 - Investigate USB separately.
