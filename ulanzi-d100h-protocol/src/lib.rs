@@ -1,3 +1,6 @@
+//! Ulanzi D100H packet codec, recovered from firmware 1.3.8.1 captures.
+#![forbid(unsafe_code)]
+
 use std::{error::Error, fmt, time::Duration};
 
 pub const PACKET_LEN: usize = 20;

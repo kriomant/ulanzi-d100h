@@ -1,0 +1,14 @@
+[package]
+name = "ulanzi-d100h"
+version = "0.1.0"
+edition = "2024"
+description = "Reverse-engineered Ulanzi D100H BLE protocol and communication library"
+license = "MIT"
+
+[dependencies]
+ulanzi-d100h-protocol = { version = "0.1.0", path = "../ulanzi-d100h-protocol" }
+btleplug = "0.13.5"
+futures-util = "0.3.34"
+
+[dev-dependencies]
+tokio = { version = "1.53.2", features = ["macros", "rt-multi-thread", "time"] }

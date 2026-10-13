@@ -1,5 +1,5 @@
 use std::time::Duration;
-use ulanzi_d100h::{Command, Event, Message, Packet};
+use ulanzi_d100h_protocol::{Command, Event, Message, Packet};
 
 #[test]
 fn malformed_packets_and_unknown_events_are_preserved() {

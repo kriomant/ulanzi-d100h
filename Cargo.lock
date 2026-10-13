@@ -688,7 +688,12 @@ dependencies = [
  "btleplug",
  "futures-util",
  "tokio",
+ "ulanzi-d100h-protocol",
 ]
+
+[[package]]
+name = "ulanzi-d100h-protocol"
+version = "0.1.0"
 
 [[package]]
 name = "unicode-ident"

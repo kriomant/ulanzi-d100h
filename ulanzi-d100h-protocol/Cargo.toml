@@ -1,0 +1,6 @@
+[package]
+name = "ulanzi-d100h-protocol"
+version = "0.1.0"
+edition = "2024"
+description = "Dependency-free Ulanzi D100H packet codec and protocol types"
+license = "MIT"

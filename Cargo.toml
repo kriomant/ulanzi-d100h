@@ -1,25 +1,3 @@
-[package]
-name = "ulanzi-d100h"
-version = "0.1.0"
-edition = "2024"
-description = "Reverse-engineered Ulanzi D100H BLE protocol and communication library"
-license = "MIT"
-
-[features]
-default = []
-ble = ["dep:btleplug", "dep:futures-util"]
-
-[dependencies]
-btleplug = { version = "0.13.5", optional = true }
-futures-util = { version = "0.3.34", optional = true }
-
-[dev-dependencies]
-tokio = { version = "1.53.2", features = ["macros", "rt-multi-thread", "time"] }
-
-[[example]]
-name = "discover"
-required-features = ["ble"]
-
-[[example]]
-name = "events"
-required-features = ["ble"]
+[workspace]
+members = ["ulanzi-d100h", "ulanzi-d100h-protocol"]
+resolver = "3"

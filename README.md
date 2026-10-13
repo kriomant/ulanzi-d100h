@@ -6,14 +6,18 @@ verified against captures from firmware **1.3.8.1**.
 - Dependency-free 20-byte packet codec with TEA encryption/decryption.
 - Typed button, knob click, rotation, and held-knob rotation events.
 - Haptics, sleep timer, serial query, and observed heartbeat commands.
-- Optional asynchronous BLE client using btleplug.
+- Asynchronous BLE client using btleplug.
 
 See [PROTOCOL.md](PROTOCOL.md) for the complete evidence and limitations.
+
+The workspace contains `ulanzi-d100h` for BLE communication and the dependency-free
+`ulanzi-d100h-protocol` crate for using the codec separately. The main crate
+re-exports the protocol types and exposes them through `protocol` as well.
 
 ## Decode notifications
 
 ```rust
-use ulanzi_d100h::{Message, Packet};
+use ulanzi_d100h_protocol::{Message, Packet};
 
 fn receive(value: &[u8]) {
     match Packet::from_wire(value).map(Packet::message) {
@@ -30,7 +34,7 @@ have different formats. Unknown plaintext messages are preserved.
 
 ## BLE communication
 
-Enable the `ble` feature. Use btleplug to scan, connect, and discover services,
+Use btleplug to scan, connect, and discover services,
 then explicitly select the controller's vendor write-without-response and notify
 characteristics and pass them to `ble::Client::attach`.
 
@@ -57,7 +61,7 @@ for explicit cleanup.
 List discovered UUIDs without sending vendor writes:
 
 ```sh
-cargo run --features ble --example discover
+cargo run --example discover
 ```
 
 Discovery searches connected peripherals exposing either service used by Ulanzi
@@ -68,7 +72,7 @@ To print just their names and CoreBluetooth IDs without
 connecting or discovering GATT services:
 
 ```sh
-cargo run --features ble --example discover -- --connected
+cargo run --example discover -- --connected
 ```
 
 Close Studio before connecting independently. macOS may request Bluetooth
@@ -82,7 +86,7 @@ characteristics; the example does not guess.
 Automatically select the write/notify channels:
 
 ```sh
-cargo run --features ble --example events
+cargo run --example events
 ```
 
 The example looks for a unique pair of distinct write-without-response and notify
@@ -120,9 +124,9 @@ event IDs.
 ## Validation
 
 ```sh
-cargo test
-cargo test --all-features
-cargo clippy --all-targets --all-features -- -D warnings
+cargo test -p ulanzi-d100h-protocol
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 Regression fixtures contain captured ciphertext/plaintext pairs, including device
@@ -136,8 +140,8 @@ The `events` example now sends the captured Studio heartbeat immediately and
 once per second. Run with `--passive` to retain notification-only behavior:
 
 ```sh
-cargo run --features ble --example events
-cargo run --features ble --example events -- --passive
+cargo run --example events
+cargo run --example events -- --passive
 ```
 
 Confirmed by the user on firmware 1.3.8.1 with Studio fully quit: sending the
