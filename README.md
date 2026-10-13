@@ -63,6 +63,17 @@ List discovered UUIDs without sending vendor writes:
 cargo run --features ble --example discover
 ```
 
+Discovery searches connected peripherals exposing either service used by Ulanzi
+Studio: `00001971-0000-1000-8000-00805f9b34fb` or
+`00002013-0000-1000-8000-00805f9b34fb`. It does not scan or filter by device name.
+Connect the Dial in macOS Bluetooth settings first.
+To print just their names and CoreBluetooth IDs without
+connecting or discovering GATT services:
+
+```sh
+cargo run --features ble --example discover -- --connected
+```
+
 Close Studio before connecting independently. macOS may request Bluetooth
 permission for the terminal or application running the example. Platform Bluetooth
 requirements are inherited from btleplug (Linux additionally needs D-Bus development
