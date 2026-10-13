@@ -270,7 +270,25 @@ before and after reconnection.
 
 ### Additional unsolicited message
 
-Notifications beginning `0b 7b XX 10 00 64` were observed, where `XX` varied (`78`, `76`, `72`, `71` across experiments). A separate battery attribute also reported `64`. The vendor message may contain status/battery information, but the meaning of `XX` and the full message is not confirmed.
+`0b 7b` identifies a battery/status notification.
+
+| Offset | Meaning |
+|---|---|
+| 0–1 | `0b 7b`, battery notification prefix |
+| 2–3 | Little-endian unsigned 16-bit voltage value |
+| 4, bits 0–1 | Low-battery status (raw two-bit value) |
+| 4, bit 2 | Power-off flag |
+| 4, bit 3 | Charging flag |
+| 4, bit 4 | Charge-full flag |
+| 5 | Battery percentage |
+
+Example: `0b 7b 22 10 00 64` means voltage value `0x1022` = 4130,
+battery 100%, charging false, charge-full false, low-battery status 0,
+and power-off false. The voltage value is consistent with millivolts (4.130 V),
+though the unit has not been independently measured. Earlier changing bytes
+`78`, `76`, `72`, `71` were the low byte of the voltage, not an event ID.
+The user observed this report alongside a button event after inactivity;
+the precise reporting trigger/interval remains unverified.
 
 ## 7. Implementation boundaries
 

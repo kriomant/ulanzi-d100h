@@ -42,6 +42,18 @@ impl Packet {
                 });
             }
         }
+        if p[..2] == [0x0b, 0x7b] && p[4] & 0xe0 == 0
+            && p[5] <= 100 && p[6..].iter().all(|&b| b == 0)
+        {
+            return Message::BatteryStatus(BatteryStatus {
+                voltage_raw: u16::from_le_bytes([p[2], p[3]]),
+                battery_percent: p[5],
+                low_battery_status: p[4] & 0x03,
+                power_off: p[4] & 0x04 != 0,
+                charging: p[4] & 0x08 != 0,
+                charge_full: p[4] & 0x10 != 0,
+            });
+        }
         match p[..4] {
             [6, 1, 0x23, 0x10] if p[4] == 1 && p[5..].iter().all(|&b| b == 0) =>
                 Message::Reply(Reply::Heartbeat),
@@ -123,8 +135,22 @@ pub enum Reply {
     SerialFragment { index: u8, text: Vec<u8> },
 }
 
+/// Unsolicited battery/status report.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BatteryStatus {
+    /// Little-endian voltage reading; consistent with millivolts, not yet measured.
+    pub voltage_raw: u16,
+    pub battery_percent: u8,
+    /// Raw two-bit status; meanings of the nonzero values are not yet established.
+    pub low_battery_status: u8,
+    pub power_off: bool,
+    pub charging: bool,
+    /// The firmware flag is independent of battery_percent being 100.
+    pub charge_full: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Message { Event(Event), Reply(Reply), Unknown(Packet) }
+pub enum Message { Event(Event), Reply(Reply), BatteryStatus(BatteryStatus), Unknown(Packet) }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Command {

@@ -7,4 +7,4 @@
 pub use ulanzi_d100h_protocol as protocol;
 pub mod ble;
 
-pub use protocol::{Button, Command, Direction, Event, Message, Packet, ProtocolError, Reply};
+pub use protocol::{BatteryStatus, Button, Command, Direction, Event, Message, Packet, ProtocolError, Reply};

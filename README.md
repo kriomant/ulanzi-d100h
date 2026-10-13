@@ -151,3 +151,13 @@ this device/session; the timeout after stopping heartbeats is not yet measured.
 
 The Homebrew project's observation that custom profiles do not persist on the
 device does not establish that vendor commands cannot switch its input mode.
+
+## Battery notifications
+
+Unsolicited `0b 7b` messages decode to `Message::BatteryStatus(BatteryStatus)`.
+The communication crate re-exports `BatteryStatus` from the protocol crate.
+The events example prints these reports with named fields. Reports include battery
+percentage, raw voltage, charging, charge-full, power-off, and the raw two-bit
+low-battery status. Voltage is consistent with millivolts but has not been measured
+independently. A 100% reading does not imply that the charge-full flag is set.
+Unrecognized reserved fields remain `Message::Unknown`.

@@ -39,3 +39,37 @@ fn all_controls_and_held_rotation_parse() {
         }
     }
 }
+
+#[test]
+fn decodes_observed_battery_notification() {
+    let packet = Packet([11, 123, 34, 16, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(Packet::from_wire(&packet.to_wire()).unwrap().message(),
+        Message::BatteryStatus(ulanzi_d100h_protocol::BatteryStatus {
+            voltage_raw: 4130,
+            battery_percent: 100,
+            low_battery_status: 0,
+            power_off: false,
+            charging: false,
+            charge_full: false,
+        }));
+}
+
+#[test]
+fn battery_flags_and_unrecognized_fields() {
+    let mut p = [0; 20];
+    p[..6].copy_from_slice(&[0x0b, 0x7b, 0x78, 0x10, 0, 100]);
+    for flags in 0..32 {
+        p[4] = flags;
+        let Message::BatteryStatus(status) = Packet(p).message() else { panic!("battery report not recognized") };
+        assert_eq!(status.voltage_raw, 4216);
+        assert_eq!(status.low_battery_status, flags & 3);
+        assert_eq!(status.power_off, flags & 4 != 0);
+        assert_eq!(status.charging, flags & 8 != 0);
+        assert_eq!(status.charge_full, flags & 16 != 0);
+    }
+    p[4] = 0x20;
+    assert_eq!(Packet(p).message(), Message::Unknown(Packet(p)));
+    p[4] = 0;
+    p[6] = 1;
+    assert_eq!(Packet(p).message(), Message::Unknown(Packet(p)));
+}
