@@ -1,0 +1,18 @@
+[package]
+name = "ulanzi-d100h-python"
+version = "0.1.0"
+edition = "2024"
+description = "Python bindings for the Ulanzi D100H"
+license = "MIT"
+
+[lib]
+name = "ulanzi_d100h"
+crate-type = ["cdylib"]
+
+[dependencies]
+ulanzi-d100h-protocol = { version = "0.1.0", path = "../ulanzi-d100h-protocol" }
+pyo3 = { version = "0.29.3", features = ["abi3-py310"] }
+ulanzi-d100h = { version = "0.1.0", path = "../ulanzi-d100h" }
+btleplug = "0.13.5"
+pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
+tokio = { version = "1.53.2", features = ["sync", "macros"] }

@@ -55,7 +55,7 @@ impl Packet {
             });
         }
         match p[..4] {
-            [6, 1, 0x23, 0x10] if p[4] == 1 && p[5..].iter().all(|&b| b == 0) =>
+            [6, 1, 0x23, 0x10] if matches!(p[4], 0 | 1) && p[5..].iter().all(|&b| b == 0) =>
                 Message::Reply(Reply::Heartbeat),
             [1, 6, 0x40, op @ (0x11 | 0x14)] if matches!(p[4], 0 | 0xff)
                 && p[5..].iter().all(|&b| b == 0) =>
@@ -64,6 +64,16 @@ impl Packet {
                 Message::Reply(Reply::SleepTimer {
                     seconds: u16::from_le_bytes([p[4], p[5]]), write_response: op == 0x12,
                 }),
+            [1, 4, 4, 0x11] => Message::Reply(Reply::FirmwareVersion {
+                version: FirmwareVersion { major: p[10], minor: p[11], patch: p[12],
+                    revision: if p[18] == 0 { None } else { Some(p[18]) } },
+                custom_code: [p[4], p[5], p[6]],
+                raw_data: p[4..].try_into().unwrap(),
+            }),
+            [1, 1, 0xfa, 0x11] if p[10..].iter().all(|&b| b == 0) =>
+                Message::Reply(Reply::DeviceAddress(p[4..10].try_into().unwrap())),
+            [1, 4, 0x0b, 0x11] =>
+                Message::Reply(Reply::FlashId(p[4..].try_into().unwrap())),
             [1, 1, 0x0b, 0x11] if p[4] <= 14 => {
                 let length = usize::from(p[4]);
                 Message::Reply(Reply::SerialFragment { index: p[5], text: p[6..6 + length].to_vec() })
@@ -126,9 +136,31 @@ pub enum Event {
     Rotation { direction: Direction, knob_pressed: bool },
 }
 
+/// Firmware components formatted using Studio's version decoder.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FirmwareVersion {
+    pub major: u8,
+    pub minor: u8,
+    pub patch: u8,
+    /// Studio omits the fourth component when its byte is zero.
+    pub revision: Option<u8>,
+}
+
+impl fmt::Display for FirmwareVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
+        if let Some(revision) = self.revision { write!(f, ".{revision}")?; }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Reply {
     Heartbeat,
+    FirmwareVersion { version: FirmwareVersion, custom_code: [u8; 3], raw_data: [u8; 16] },
+    DeviceAddress([u8; 6]),
+    /// Opaque flash identifier; no subfield meanings are assumed.
+    FlashId([u8; 16]),
     Haptics { enabled: bool, write_response: bool },
     SleepTimer { seconds: u16, write_response: bool },
     /// Only the observed two-fragment serial response is established.
@@ -155,7 +187,8 @@ pub enum Message { Event(Event), Reply(Reply), BatteryStatus(BatteryStatus), Unk
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Command {
     Heartbeat, ReadHaptics, SetHaptics(bool), ReadSleepTimer, SetSleepTimer(u16), ReadSerial,
-    /// Observed setup request. Its exact authentication role is unresolved.
+    ReadFirmwareVersion, ReadDeviceAddress, ReadFlashId,
+    /// Compatibility name for ReadDeviceAddress; this is a query, not authentication.
     ObservedSetup,
     Raw(Packet),
 }
@@ -183,7 +216,9 @@ impl Command {
                 return Packet(p);
             }
             Self::ReadSerial => &[1, 1, 0x0b, 1],
-            Self::ObservedSetup => &[1, 1, 0xfa, 1],
+            Self::ReadFirmwareVersion => &[1, 4, 4, 1],
+            Self::ReadFlashId => &[1, 4, 0x0b, 1],
+            Self::ReadDeviceAddress | Self::ObservedSetup => &[1, 1, 0xfa, 1],
             Self::Raw(packet) => return packet,
         };
         p[..prefix.len()].copy_from_slice(prefix);

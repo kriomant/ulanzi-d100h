@@ -7,15 +7,13 @@ use ulanzi_d100h::{ble::Client, Command, Message, Reply};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let mut args: Vec<_> = std::env::args().skip(1).collect();
-    let passive = args.iter().any(|arg| arg == "--passive");
-    args.retain(|arg| arg != "--passive");
+    let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() == 1 && matches!(args[0].as_str(), "-h" | "--help") {
-        println!("Usage: events [--passive] [device-id]\n       events [--passive] <write-uuid> <notify-uuid> [device-id]");
+        println!("Usage: events [device-id]\n       events <write-uuid> <notify-uuid> [device-id]");
         return Ok(());
     }
     if args.len() > 3 {
-        return Err("Usage: events [--passive] [device-id] | events [--passive] <write-uuid> <notify-uuid> [device-id]".into());
+        return Err("Usage: events [device-id] | events <write-uuid> <notify-uuid> [device-id]".into());
     }
     let device_id = if args.len() == 1 { args.first() } else { args.get(2) };
     let manager = Manager::new().await?;
@@ -86,22 +84,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
         println!("Using service={} write={} notify={}", write.service_uuid, write.uuid, notify.uuid);
         let mut client = Client::attach(peripheral.clone(), write, notify).await?;
-        // Studio sends this packet once per second. Subscription alone leaves
-        // standalone HID actions active. Heartbeat alone was confirmed to enable
-        // vendor events and suppress HID actions on firmware 1.3.8.1.
-        // --passive permits a direct comparison.
-        if !passive {
-            client.send(Command::Heartbeat).await?;
-        }
+        client.send(Command::Heartbeat).await?;
         let mut heartbeat = tokio::time::interval_at(
             tokio::time::Instant::now() + Duration::from_secs(1),
             Duration::from_secs(1),
         );
         heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        println!("Listening to {id}. Heartbeat: {}. Press Ctrl-C to stop.", if passive { "off" } else { "on" });
+        println!("Listening to {id}. Press Ctrl-C to stop.");
         loop {
             tokio::select! {
-                _ = heartbeat.tick(), if !passive => {
+                _ = heartbeat.tick() => {
                     client.send(Command::Heartbeat).await?;
                 },
                 message = client.next_message() => match message {

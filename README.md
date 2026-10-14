@@ -13,6 +13,8 @@ See [PROTOCOL.md](PROTOCOL.md) for the complete evidence and limitations.
 The workspace contains `ulanzi-d100h` for BLE communication and the dependency-free
 `ulanzi-d100h-protocol` crate for using the codec separately. The main crate
 re-exports the protocol types and exposes them through `protocol` as well.
+The `ulanzi-d100h-python` crate provides [Python bindings](ulanzi-d100h-python/README.md)
+for the protocol and asynchronous BLE communication.
 
 ## Decode notifications
 
@@ -49,11 +51,13 @@ while let Some(message) = client.next_message().await {
 After subscribing, send `Command::Heartbeat` immediately and once per second.
 This was confirmed with Studio fully quit: vendor control events became available
 and the factory keyboard/media actions stopped. No other startup commands were
-needed in this experiment on firmware 1.3.8.1. Characteristic UUID mapping still
-requires confirmation. A successful BLE write does not imply acknowledgment.
+needed, including after a power cycle, on the tested already paired device with
+firmware 1.3.8.1. The confirmed service is `1971`, write characteristic `fd01`,
+and notify characteristic `fd00` (Bluetooth base UUID). A successful BLE write does not imply acknowledgment.
 
 `Client` itself does not schedule heartbeats; the `events` example does. The
-heartbeat expiry time and behavior after stopping it remain unmeasured. There is
+device returns to standalone HID operation approximately three seconds after
+heartbeats stop, even while controls are used. There is
 no automatic timeout, reconnect, or response correlation. Monitor btleplug
 central disconnect events as appropriate for the platform. Call Client::disconnect
 for explicit cleanup.
@@ -91,8 +95,8 @@ cargo run --example events
 
 The example looks for a unique pair of distinct write-without-response and notify
 characteristics in the same Ulanzi Studio service (`1971` or `2013`) and prints the
-selected UUIDs. This is a property-based heuristic; the vendor UUID mapping remains
-unverified. If no pair or multiple pairs match, it reports an error. You can override
+selected UUIDs. This is a property-based heuristic; the confirmed Dial channel is
+service `1971`, write `fd01`, notify `fd00`. If no pair or multiple pairs match, it reports an error. You can override
 selection with `-- <write-uuid> <notify-uuid> [device-id]`.
 
 The example connects to a Dial already connected in Bluetooth settings and prints
@@ -113,7 +117,7 @@ let sleep = Command::sleep_timer(Duration::from_secs(7200)).unwrap();
 
 `SetSleepTimer` accepts a u16 duration in seconds. Only 0, 3600, 7200, 10800, and
 14400 were tested via Studio. Duration conversion rejects fractional/overflowing
-values. Settings writes have been decoded from captures, not replayed independently.
+values. Haptics writes have been confirmed independently, including persistence after a power cycle. Sleep writes and persistence across a power cycle have also been confirmed independently.
 Serial replies expose raw fragments; automatic serial assembly is intentionally
 left to callers because general fragmentation completion rules are unverified.
 
@@ -136,18 +140,17 @@ tests. No firmware upgrade or USB transport is implemented.
 
 ## Standalone HID behavior and online mode
 
-The `events` example now sends the captured Studio heartbeat immediately and
-once per second. Run with `--passive` to retain notification-only behavior:
+The `events` example sends the captured Studio heartbeat immediately and once
+per second:
 
 ```sh
 cargo run --example events
-cargo run --example events -- --passive
 ```
 
 Confirmed by the user on firmware 1.3.8.1 with Studio fully quit: sending the
 heartbeat alone enables vendor control events and suppresses factory HID actions.
 The example performs no other startup exchanges. This confirms sufficiency for
-this device/session; the timeout after stopping heartbeats is not yet measured.
+this device, including startup after a power cycle while already paired. Stopping heartbeats returns the device to standalone HID operation after approximately three seconds.
 
 The Homebrew project's observation that custom profiles do not persist on the
 device does not establish that vendor commands cannot switch its input mode.
@@ -161,3 +164,13 @@ percentage, raw voltage, charging, charge-full, power-off, and the raw two-bit
 low-battery status. Voltage is consistent with millivolts but has not been measured
 independently. A 100% reading does not imply that the charge-full flag is set.
 Unrecognized reserved fields remain `Message::Unknown`.
+
+## Identity queries
+
+`Command::ReadFirmwareVersion` sends the captured version query. Its
+`Reply::FirmwareVersion` includes a Display-formatted `FirmwareVersion`, the
+three-byte custom code, and the full raw response payload. The captured response
+formats as 1.3.8.1. Other payload fields remain uninterpreted.
+`ReadDeviceAddress` and `ReadFlashId` return the six-byte address and opaque
+16-byte flash ID respectively. `ObservedSetup` is retained as a compatibility
+name for the address query; it is not an authentication exchange.

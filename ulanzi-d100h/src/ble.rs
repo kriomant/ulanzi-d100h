@@ -38,9 +38,13 @@ impl Client {
 
     /// Sends a command. Success means the BLE write succeeded, not that the device
     /// acknowledged it. Read notifications to inspect the corresponding reply.
-    pub async fn send(&self, command: Command) -> Result<(), BleError> {
-        self.peripheral.write(&self.write, &command.packet().to_wire(), WriteType::WithoutResponse).await?;
-        Ok(())
+    pub fn send(&self, command: Command) -> impl Future<Output = Result<(), BleError>> + Send + '_ {
+        let peripheral = &self.peripheral;
+        let write = &self.write;
+        async move {
+            peripheral.write(write, &command.packet().to_wire(), WriteType::WithoutResponse).await?;
+            Ok(())
+        }
     }
 
     /// Skips notifications from other UUIDs; preserves unknown vendor messages.
@@ -56,9 +60,12 @@ impl Client {
     }
 
     /// Explicit cleanup; dropping Client does not asynchronously unsubscribe/disconnect.
-    pub async fn disconnect(&self) -> Result<(), BleError> {
-        self.peripheral.disconnect().await?;
-        Ok(())
+    pub fn disconnect(&self) -> impl Future<Output = Result<(), BleError>> + Send + '_ {
+        let peripheral = &self.peripheral;
+        async move {
+            peripheral.disconnect().await?;
+            Ok(())
+        }
     }
 }
 
