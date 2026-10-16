@@ -1,17 +1,32 @@
 use std::sync::Arc;
 use btleplug::{api::{Central as _, CharPropFlags, Manager as _, Peripheral as _, RetrievePeripheralsOptions}, platform::{Manager, Peripheral}};
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{Mutex, OnceCell, mpsc, oneshot};
 use ulanzi_d100h::{ble::Client as RustClient, Message};
 use crate::{Command, message_dict};
 
 fn error(error: impl std::fmt::Display) -> PyErr { PyRuntimeError::new_err(error.to_string()) }
 fn closed() -> PyErr { error("client is disconnected") }
 
+// On macOS, every new btleplug Adapter starts a CoreBluetooth thread without a
+// shutdown path. Keep adapters for the extension lifetime so reconnect retries
+// do not accumulate threads.
+static ADAPTERS: OnceCell<Vec<btleplug::platform::Adapter>> = OnceCell::const_new();
+
+async fn adapters() -> PyResult<&'static [btleplug::platform::Adapter]> {
+    ADAPTERS
+        .get_or_try_init(|| async {
+            let manager = Manager::new().await?;
+            manager.adapters().await
+        })
+        .await
+        .map(Vec::as_slice)
+        .map_err(error)
+}
+
 async fn peripherals() -> PyResult<Vec<Peripheral>> {
-    let manager = Manager::new().await.map_err(error)?;
     let mut found = Vec::new();
-    for adapter in manager.adapters().await.map_err(error)? {
+    for adapter in adapters().await? {
         found.extend(adapter.retrieve_peripherals(RetrievePeripheralsOptions {
             services: Some(vec![
                 "00001971-0000-1000-8000-00805f9b34fb".parse().unwrap(),
