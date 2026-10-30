@@ -10,5 +10,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 
+[project.urls]
+Homepage = "https://github.com/kriomant/ulanzi-d100h"
+Repository = "https://github.com/kriomant/ulanzi-d100h"
+
 [tool.maturin]
 bindings = "pyo3"
